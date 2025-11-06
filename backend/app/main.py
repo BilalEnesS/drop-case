@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from .routers import health
+from app.routers import auth
 from app.core.config import settings
 from app.db.session import engine
 from app.db.base import Base
@@ -11,6 +12,7 @@ def create_app() -> FastAPI:
 
 	# Routers
 	app.include_router(health.router, prefix="/health", tags=["health"]) 
+	app.include_router(auth.router)
 
 	@app.on_event("startup")
 	async def on_startup() -> None:
