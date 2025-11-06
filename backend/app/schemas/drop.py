@@ -18,5 +18,6 @@ class DropOut(BaseModel):
 
 class DropListItem(DropOut):
 	joined: bool = False
+	claimed: bool = False
 
 
