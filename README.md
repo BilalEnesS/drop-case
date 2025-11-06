@@ -1,6 +1,6 @@
 DropSpot – Full Stack Challenge (FastAPI + React)
 
-Başlangıç Zamanı: <YYYYMMDDHHmm>
+Başlangıç Zamanı: 202511061423
 
 Özet
 - Amaç: Sınırlı stoklu drop’larda bekleme listesi ve claim penceresi akışı.
@@ -35,9 +35,38 @@ Idempotency ve Transaction
 - Uygun hata kodları: 400/401/403/404/409/422.
 
 Seed Üretimi ve priority_score
-- Seed girdileri: remote_url | first_commit_epoch | start_time(YYYYMMDDHHmm)
-- SHA256 → ilk 12 hex. A/B/C katsayıları seed’den türetilir.
-- priority_score = base + (signup_latency_ms % A) + (account_age_days % B) - (rapid_actions % C)
+
+Seed, her projeye özgü bir değerdir ve priority_score hesaplamasında kullanılan katsayıları belirler.
+
+**Seed Üretim Adımları:**
+1. Projeye başladığın anın tarih ve saatini al (YYYYMMDDHHmm formatında)
+2. GitHub remote URL'ini al: `git config --get remote.origin.url`
+3. İlk commit zaman damgasını al: `git log --reverse --format=%ct | head -n1`
+4. Bu verileri birleştir: `<remote_url>|<first_commit_epoch>|<start_time>`
+5. SHA256 hash al ve ilk 12 karakterini seed olarak kullan
+
+**Script Kullanımı:**
+```bash
+python scripts/generate_seed.py
+```
+
+Script otomatik olarak:
+- Remote URL'i alır
+- İlk commit epoch'unu bulur
+- Başlangıç zamanını kullanır (veya README'den alır)
+- Seed ve katsayıları hesaplar
+
+**Katsayı Hesaplama:**
+- A = 7 + (int(seed[0:2],16) % 5)
+- B = 13 + (int(seed[2:4],16) % 7)
+- C = 3 + (int(seed[4:6],16) % 3)
+
+**Priority Score Formülü:**
+```
+priority_score = base + (signup_latency_ms % A) + (account_age_days % B) - (rapid_actions % C)
+```
+
+Seed değeri ve katsayılar backend'de environment variable veya config dosyasında saklanır.
 
 Kurulum (kısa not)
 - Backend: FastAPI, SQLAlchemy. DB için PostgreSQL veya lokalde SQLite. Ortam değişkenleri `.env`.
