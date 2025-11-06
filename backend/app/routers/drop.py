@@ -22,14 +22,16 @@ async def list_drops(
 	service = DropService(db)
 	drops = await service.list_active(offset=offset, limit=limit)
 	if user is None:
-		return [DropListItem(**DropOut.model_validate(d).model_dump(), joined=False) for d in drops]
+		return [DropListItem(**DropOut.model_validate(d).model_dump(), joined=False, claimed=False) for d in drops]
 	# compute joined set
 	from app.repositories.waitlist_repo import get_user_waitlist_drop_ids
+	from app.repositories.claim_repo import get_user_claimed_drop_ids
 	joined_ids = await get_user_waitlist_drop_ids(db, user_id=user.id)
+	claimed_ids = await get_user_claimed_drop_ids(db, user_id=user.id)
 	items: List[DropListItem] = []
 	for d in drops:
 		base = DropOut.model_validate(d).model_dump()
-		items.append(DropListItem(**base, joined=(d.id in joined_ids)))
+		items.append(DropListItem(**base, joined=(d.id in joined_ids), claimed=(d.id in claimed_ids)))
 	return items
 
 
@@ -56,5 +58,28 @@ async def leave_waitlist(
 ) -> None:
 	service = DropService(db)
 	await service.leave_waitlist(user_id=user.id, drop_id=drop_id)
+
+
+@router.post("/{drop_id}/claim")
+async def claim(
+	drop_id: int,
+	user = Depends(get_current_user),
+	db: AsyncSession = Depends(get_session),
+):
+	service = DropService(db)
+	try:
+		code = await service.claim(user_id=user.id, drop_id=drop_id)
+		return {"code": code}
+	except ValueError as e:
+		m = str(e)
+		if m == "drop_not_available":
+			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=m)
+		if m == "claim_window_closed":
+			raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=m)
+		if m == "not_in_waitlist":
+			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=m)
+		if m == "out_of_stock":
+			raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=m)
+		raise
 
 
