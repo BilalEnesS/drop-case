@@ -85,6 +85,8 @@ async def claim(
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=m)
 		if m == "out_of_stock":
 			raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=m)
+		if m == "priority_too_low":
+			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=m)
 		raise
 
 

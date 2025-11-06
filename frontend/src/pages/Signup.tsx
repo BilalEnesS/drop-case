@@ -3,31 +3,27 @@ import { useNavigate, Link } from 'react-router-dom'
 import { apiPost } from '../api/client'
 import { ThemeToggle } from '../components/ThemeToggle'
 
-type TokenOut = { access_token: string; token_type: string; role?: string }
-
-export function Login() {
+export function Signup() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setSuccess(false)
     setLoading(true)
     try {
-      const data = await apiPost<TokenOut>('/auth/login', { email, password })
-      localStorage.setItem('access_token', data.access_token)
-      if (data.role === 'admin') {
-        localStorage.setItem('role', 'admin')
-        navigate('/admin', { replace: true })
-      } else {
-        localStorage.setItem('role', 'user')
-        navigate('/', { replace: true })
-      }
+      await apiPost('/auth/signup', { email, password })
+      setSuccess(true)
+      setTimeout(() => {
+        navigate('/login', { replace: true })
+      }, 1500)
     } catch (err: any) {
-      setError(err.message || 'Login failed')
+      setError(err.message || 'Signup failed')
     } finally {
       setLoading(false)
     }
@@ -49,12 +45,12 @@ export function Login() {
           </div>
 
           <div className="card p-8">
-            <h2 className="text-2xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Welcome Back</h2>
+            <h2 className="text-2xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Create Account</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              Sign in to your account to continue
+              Sign up to join waitlists and claim exclusive drops
             </p>
             
-            <form onSubmit={handleLogin} className="grid gap-4">
+            <form onSubmit={handleSignup} className="grid gap-4">
               <label className="grid gap-1.5">
                 <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Email</span>
                 <input
@@ -76,6 +72,7 @@ export function Login() {
                   type="password"
                   placeholder="••••••••"
                   required
+                  minLength={8}
                 />
               </label>
 
@@ -84,15 +81,21 @@ export function Login() {
                   {error}
                 </div>
               )}
+              
+              {success && (
+                <div className="text-green-700 dark:text-green-400 text-sm bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                  Account created! Redirecting to login...
+                </div>
+              )}
 
               <button className="btn btn-primary w-full" type="submit" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Creating Account...' : 'Sign Up'}
               </button>
 
               <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-                Don't have an account?{' '}
-                <Link to="/signup" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
-                  Sign up
+                Already have an account?{' '}
+                <Link to="/login" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                  Sign in
                 </Link>
               </div>
             </form>
@@ -102,5 +105,4 @@ export function Login() {
     </div>
   )
 }
-
 
