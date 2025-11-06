@@ -34,8 +34,20 @@ def create_app() -> FastAPI:
 		if settings.ENV == "development":
 			# Ensure models are imported so metadata has all tables
 			from app import models  # noqa: F401
+			from sqlalchemy import text
 			async with engine.begin() as conn:
 				await conn.run_sync(Base.metadata.create_all)
+			# Add rapid_actions column if it doesn't exist (migration helper)
+			async with engine.begin() as conn:
+				try:
+					await conn.execute(text("""
+						ALTER TABLE users 
+						ADD COLUMN IF NOT EXISTS rapid_actions INTEGER NOT NULL DEFAULT 0
+					"""))
+				except Exception:
+					# Column might already exist, ignore
+					await conn.rollback()
+					pass
 
 	return app
 

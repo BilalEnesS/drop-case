@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,5 +67,58 @@ async def delete_drop(drop_id: int, _: None = Depends(require_admin), db: AsyncS
 	await db.execute(delete(Drop).where(Drop.id == drop_id))
 	await db.commit()
 	return None
+
+
+@router.get("/{drop_id}/waitlist")
+async def get_drop_waitlist(
+	drop_id: int,
+	_: None = Depends(require_admin),
+	db: AsyncSession = Depends(get_session),
+) -> dict:
+	# Get waitlist for a drop with priority scores and rankings
+	from app.services.priority_service import PriorityService
+	from app.models import User, Drop
+	
+	# Verify drop exists
+	drop_res = await db.execute(select(Drop).where(Drop.id == drop_id))
+	drop = drop_res.scalar_one_or_none()
+	if not drop:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="drop_not_found")
+	
+	# Get priorities
+	priority_svc = PriorityService(db)
+	priorities = await priority_svc.get_waitlist_with_priorities(drop_id)
+	
+	# Get user details
+	user_ids = [uid for uid, _, _ in priorities]
+	users_res = await db.execute(select(User).where(User.id.in_(user_ids)))
+	users = {u.id: u for u in users_res.scalars().all()}
+	
+	# Build response
+	waitlist_data = []
+	for rank, (user_id, score, joined_at) in enumerate(priorities, start=1):
+		user = users.get(user_id)
+		if not user:
+			continue
+		now = datetime.now(tz=timezone.utc)
+		account_age_days = int((now - user.created_at).total_seconds() / 86400) if user.created_at else 0
+		
+		waitlist_data.append({
+			"rank": rank,
+			"user_id": user_id,
+			"email": user.email,
+			"priority_score": score,
+			"joined_at": joined_at.isoformat(),
+			"account_age_days": account_age_days,
+			"rapid_actions": user.rapid_actions,
+		})
+	
+	return {
+		"drop_id": drop_id,
+		"drop_title": drop.title,
+		"stock": drop.stock,
+		"waitlist_count": len(waitlist_data),
+		"waitlist": waitlist_data,
+	}
 
 
