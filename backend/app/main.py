@@ -1,0 +1,31 @@
+from fastapi import FastAPI
+from .routers import health
+from app.core.config import settings
+from app.db.session import engine
+from app.db.base import Base
+
+
+def create_app() -> FastAPI:
+	# Minimal FastAPI app factory
+	app = FastAPI(title="DropSpot API", version="0.1.0")
+
+	# Routers
+	app.include_router(health.router, prefix="/health", tags=["health"]) 
+
+	@app.on_event("startup")
+	async def on_startup() -> None:
+		# Dev-only: auto-create tables
+		if settings.ENV == "development":
+			# Ensure models are imported so metadata has all tables
+			from app import models  # noqa: F401
+			async with engine.begin() as conn:
+				await conn.run_sync(Base.metadata.create_all)
+
+	return app
+
+
+app = create_app()
+
+# Run with: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+
