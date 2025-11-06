@@ -1,7 +1,7 @@
 from typing import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.models import Drop, Waitlist
 from app.repositories.drop_repo import list_active_drops
@@ -16,7 +16,20 @@ class DropService:
 		self.db = db
 
 	async def list_active(self, offset: int = 0, limit: int = 20) -> Sequence[Drop]:
+		# Auto-deactivate expired drops
+		await self._auto_deactivate_expired()
 		return await list_active_drops(self.db, offset=offset, limit=limit)
+
+	async def _auto_deactivate_expired(self) -> None:
+		# Mark drops as inactive if claim_window_end has passed
+		from datetime import datetime, timezone
+		now = datetime.now(tz=timezone.utc)
+		await self.db.execute(
+			update(Drop)
+			.where(Drop.claim_window_end < now, Drop.is_active == True)  # noqa: E712
+			.values(is_active=False)
+		)
+		await self.db.commit()
 
 	async def join_waitlist(self, user_id: int, drop_id: int) -> None:
 		# Ensure drop exists and active

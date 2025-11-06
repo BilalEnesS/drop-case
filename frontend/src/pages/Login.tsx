@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiPost } from '../api/client'
 
-type TokenOut = { access_token: string; token_type: string }
+type TokenOut = { access_token: string; token_type: string; role?: string }
 
 export function Login() {
   const navigate = useNavigate()
@@ -20,7 +20,13 @@ export function Login() {
       const data = await apiPost<TokenOut>('/auth/login', { email, password })
       setToken(data.access_token)
       localStorage.setItem('access_token', data.access_token)
-      navigate('/', { replace: true })
+      if (data.role === 'admin') {
+        localStorage.setItem('role', 'admin')
+        navigate('/admin', { replace: true })
+      } else {
+        localStorage.setItem('role', 'user')
+        navigate('/', { replace: true })
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed')
     } finally {
