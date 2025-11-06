@@ -13,6 +13,7 @@ type Drop = {
   is_active: boolean
   joined?: boolean
   claimed?: boolean
+  claim_code?: string | null
 }
 
 function isWithinClaimWindow(d: Drop): boolean {
@@ -38,10 +39,10 @@ export function Home() {
   }
 
   const [drops, setDrops] = useState<Drop[]>([])
+  const [claimedDrops, setClaimedDrops] = useState<Drop[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
-  const [claimCodes, setClaimCodes] = useState<Record<number, string>>({})
   const headersToken = useMemo(() => token ?? undefined, [token])
 
   async function loadDrops() {
@@ -50,6 +51,16 @@ export function Home() {
     try {
       const data = await apiGet<Drop[]>('/drops', headersToken)
       setDrops(data)
+      // Also load claimed drops
+      if (headersToken) {
+        try {
+          const claimed = await apiGet<Drop[]>('/drops/claimed', headersToken)
+          setClaimedDrops(claimed)
+        } catch (e) {
+          // Ignore if no claims or error
+          setClaimedDrops([])
+        }
+      }
     } catch (e: any) {
       setError(e.message || 'Failed to load drops')
     } finally {
@@ -95,10 +106,8 @@ export function Home() {
     if (!headersToken) return navigate('/login')
     setError(null)
     try {
-      const res = await apiPost<{ code: string }>(`/drops/${dropId}/claim`, {}, headersToken)
-      setClaimCodes(prev => ({ ...prev, [dropId]: res.code }))
+      await apiPost<{ code: string }>(`/drops/${dropId}/claim`, {}, headersToken)
       setInfo('Claim successful')
-      setDrops(prev => prev.map(d => d.id === dropId ? { ...d, claimed: true } : d))
       await loadDrops()
     } catch (e: any) {
       setError(e.message || 'Claim failed')
@@ -150,8 +159,8 @@ export function Home() {
                       )}
                     </div>
                     <div className="text-slate-400 text-sm">Stock: {d.stock}</div>
-                    {claimCodes[d.id] && (
-                      <div className="text-emerald-300 text-sm mt-1">Code: <span className="font-mono">{claimCodes[d.id]}</span></div>
+                    {d.claim_code && (
+                      <div className="text-emerald-300 text-sm mt-1">Code: <span className="font-mono">{d.claim_code}</span></div>
                     )}
                   </div>
                   <div className="flex gap-2">
@@ -171,6 +180,30 @@ export function Home() {
           </ul>
         )}
       </section>
+
+      {claimedDrops.length > 0 && (
+        <section className="card p-6 mt-6">
+          <h3 className="text-lg font-semibold mb-4">Your Claimed Drops</h3>
+          <ul className="grid gap-3">
+            {claimedDrops.map(d => (
+              <li key={d.id} className="border border-slate-700 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium flex items-center gap-2">
+                      {d.title}
+                      <span className="text-xs px-2 py-1 rounded bg-emerald-600/30 border border-emerald-500 text-emerald-300">Claimed</span>
+                    </div>
+                    <div className="text-slate-400 text-sm">Stock: {d.stock}</div>
+                    {d.claim_code && (
+                      <div className="text-emerald-300 text-sm mt-1 font-mono">Code: {d.claim_code}</div>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }

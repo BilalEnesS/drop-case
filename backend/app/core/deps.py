@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import decode_access_token
 from app.db.session import get_session
 from app.repositories.user_repo import get_user_by_email
+from app.models import User
 
 
 bearer_scheme = HTTPBearer(auto_error=True)
@@ -48,6 +49,13 @@ async def get_optional_user(
 	if not email:
 		return None
 	user = await get_user_by_email(db, email)
+	return user
+
+
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+	# Ensure user has admin role
+	if getattr(user, "role", None) != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_required")
 	return user
 
 

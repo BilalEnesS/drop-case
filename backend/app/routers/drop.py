@@ -25,13 +25,18 @@ async def list_drops(
 		return [DropListItem(**DropOut.model_validate(d).model_dump(), joined=False, claimed=False) for d in drops]
 	# compute joined set
 	from app.repositories.waitlist_repo import get_user_waitlist_drop_ids
-	from app.repositories.claim_repo import get_user_claimed_drop_ids
+	from app.repositories.claim_repo import get_user_claimed_drop_ids, get_claim_by_user_and_drop
 	joined_ids = await get_user_waitlist_drop_ids(db, user_id=user.id)
 	claimed_ids = await get_user_claimed_drop_ids(db, user_id=user.id)
 	items: List[DropListItem] = []
 	for d in drops:
 		base = DropOut.model_validate(d).model_dump()
-		items.append(DropListItem(**base, joined=(d.id in joined_ids), claimed=(d.id in claimed_ids)))
+		is_claimed = d.id in claimed_ids
+		claim_code = None
+		if is_claimed:
+			claim = await get_claim_by_user_and_drop(db, user_id=user.id, drop_id=d.id)
+			claim_code = claim.code if claim else None
+		items.append(DropListItem(**base, joined=(d.id in joined_ids), claimed=is_claimed, claim_code=claim_code))
 	return items
 
 
@@ -81,5 +86,36 @@ async def claim(
 		if m == "out_of_stock":
 			raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=m)
 		raise
+
+
+@router.get("/claimed", response_model=List[DropListItem])
+async def list_claimed_drops(
+	user = Depends(get_current_user),
+	db: AsyncSession = Depends(get_session),
+) -> List[DropListItem]:
+	# Return all drops user has claimed (active or inactive) with codes
+	from app.repositories.claim_repo import get_claim_by_user_and_drop
+	from app.models import Claim, Drop
+	from sqlalchemy import select
+	
+	# Get all claims for this user
+	claims_res = await db.execute(select(Claim).where(Claim.user_id == user.id))
+	claims = claims_res.scalars().all()
+	
+	if not claims:
+		return []
+	
+	# Get corresponding drops
+	drop_ids = [c.drop_id for c in claims]
+	drops_res = await db.execute(select(Drop).where(Drop.id.in_(drop_ids)).order_by(Drop.starts_at.desc()))
+	drops = drops_res.scalars().all()
+	
+	# Build response with claim codes
+	items: List[DropListItem] = []
+	claim_map = {c.drop_id: c.code for c in claims}
+	for d in drops:
+		base = DropOut.model_validate(d).model_dump()
+		items.append(DropListItem(**base, joined=False, claimed=True, claim_code=claim_map.get(d.id)))
+	return items
 
 
