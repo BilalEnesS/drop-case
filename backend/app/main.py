@@ -4,11 +4,21 @@ from app.routers import auth
 from app.core.config import settings
 from app.db.session import engine
 from app.db.base import Base
+from starlette.middleware.cors import CORSMiddleware
 
 
 def create_app() -> FastAPI:
 	# Minimal FastAPI app factory
 	app = FastAPI(title="DropSpot API", version="0.1.0")
+
+	# CORS for frontend dev
+	app.add_middleware(
+		CORSMiddleware,
+		allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+		allow_credentials=True,
+		allow_methods=["*"],
+		allow_headers=["*"]
+	)
 
 	# Routers
 	app.include_router(health.router, prefix="/health", tags=["health"]) 
