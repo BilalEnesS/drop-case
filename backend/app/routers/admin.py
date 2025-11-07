@@ -16,15 +16,11 @@ router = APIRouter(prefix="/admin/drops", tags=["admin"])
 
 @router.get("", response_model=List[DropOut])
 async def list_all_drops(_ = Depends(require_admin), db: AsyncSession = Depends(get_session)) -> List[DropOut]:
-	# Auto-deactivate expired drops
-	from datetime import datetime, timezone
-	now = datetime.now(tz=timezone.utc)
-	await db.execute(
-		update(Drop)
-		.where(Drop.claim_window_end < now, Drop.is_active == True)  # noqa: E712
-		.values(is_active=False)
-	)
-	await db.commit()
+	# Auto-deactivate expired drops - fetch and check in Python to avoid timezone issues
+	from app.services.drop_service import DropService
+	service = DropService(db)
+	await service._auto_deactivate_expired()
+	
 	# List all drops for admin
 	res = await db.execute(select(Drop).order_by(Drop.starts_at.desc()))
 	drops = res.scalars().all()
@@ -46,6 +42,21 @@ async def create_drop(payload: DropCreate, _: None = Depends(require_admin), db:
 	await db.commit()
 	await db.refresh(drop)
 	return DropOut.model_validate(drop)
+
+
+@router.post("/suggest-description")
+async def suggest_description(
+	payload: dict,
+	_: None = Depends(require_admin),
+) -> dict:
+	# AI-powered description suggestion
+	from app.services.ai_service import suggest_drop_description
+	title = payload.get("title", "")
+	if not title:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="title_required")
+	
+	description = await suggest_drop_description(title)
+	return {"description": description}
 
 
 @router.put("/{drop_id}", response_model=DropOut)

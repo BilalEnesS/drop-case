@@ -95,32 +95,33 @@ class DropService:
 			raise ValueError("not_in_waitlist")
 		
 		# Priority-based claim: Check if user is in top priority users
-		priority_svc = PriorityService(self.db)
-		priorities = await priority_svc.get_waitlist_with_priorities(drop_id)
+		# CRITICAL: Priority check and stock decrement must be atomic to prevent race conditions
+		# Strategy: Get priorities, check position, then atomically decrement stock in one transaction
 		
-		# Get current stock
+		# Refresh drop to get latest stock (critical for concurrent claims)
+		await self.db.refresh(drop)
 		current_stock = drop.stock
 		
-		# Get already claimed count for this drop
+		# Get already claimed count for this drop (within same transaction)
 		from app.models import Claim
 		claimed_res = await self.db.execute(
 			select(func.count(Claim.id)).where(Claim.drop_id == drop_id)
 		)
 		claimed_count = claimed_res.scalar_one() or 0
 		
-		# Available slots = stock - claimed_count
+		# Calculate available slots
 		available_slots = current_stock - claimed_count
 		
 		if available_slots <= 0:
 			raise ValueError("out_of_stock")
 		
+		# Get priority rankings (must be done AFTER getting current stock/claimed count)
+		priority_svc = PriorityService(self.db)
+		priorities = await priority_svc.get_waitlist_with_priorities(drop_id)
+		
 		# Priority-based claim: Only allow claims from top priority users
-		# Get top priority user IDs (sorted by priority score descending)
 		if priorities:
-			# Get top available_slots users by priority
-			top_user_ids = {uid for uid, _, _ in priorities[:available_slots]}
-			
-			# Check user's position in priority list
+			# Find user's position in priority-sorted waitlist
 			user_priority_rank = next((i for i, (uid, _, _) in enumerate(priorities) if uid == user_id), None)
 			
 			if user_priority_rank is None:
@@ -128,14 +129,21 @@ class DropService:
 				raise ValueError("not_in_waitlist")
 			
 			# Only allow claim if user is in top available_slots by priority
+			# user_priority_rank is 0-indexed: rank 0 = 1st place, rank 1 = 2nd place, etc.
+			# If available_slots = 1, only rank 0 (1st place) can claim
+			# If available_slots = 2, ranks 0 and 1 (1st and 2nd) can claim
 			if user_priority_rank >= available_slots:
-				# User's priority rank is below available slots
-				# They cannot claim even if stock is available
+				# User's priority rank is below available slots threshold
+				# Example: available_slots=1, user_priority_rank=2 (3rd place) → cannot claim
 				raise ValueError("priority_too_low")
 		
-		# Try decrease stock
+		# CRITICAL: Atomically decrement stock AFTER priority check
+		# This must be the last check before creating claim record
+		# If stock decrement fails, another transaction claimed it first
 		updated = await try_decrement_stock(self.db, drop_id=drop_id)
 		if not updated:
+			# Another transaction claimed the stock between our check and decrement
+			# This is a race condition protection - reject this claim
 			raise ValueError("out_of_stock")
 		
 		# Generate single-use code

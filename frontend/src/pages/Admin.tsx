@@ -34,10 +34,12 @@ export function Admin() {
 
   // Create form state
   const [title, setTitle] = useState('New Drop')
+  const [description, setDescription] = useState('')
   const [stock, setStock] = useState(100)
   const [offsetStartMin, setOffsetStartMin] = useState(10)
   const [offsetWindowStartMin, setOffsetWindowStartMin] = useState(15)
   const [offsetWindowEndMin, setOffsetWindowEndMin] = useState(45)
+  const [suggesting, setSuggesting] = useState(false)
 
   async function loadDrops() {
     setLoading(true)
@@ -54,6 +56,24 @@ export function Admin() {
     }
   }
 
+  async function suggestDescription() {
+    if (!title || title.trim() === '') {
+      setError('Please enter a title first')
+      return
+    }
+    setSuggesting(true)
+    setError(null)
+    try {
+      const response = await apiPost<{ description: string }>('/admin/drops/suggest-description', { title }, headersToken)
+      setDescription(response.description)
+      setInfo('Description suggested!')
+    } catch (e: any) {
+      setError(e.message || 'Failed to suggest description')
+    } finally {
+      setSuggesting(false)
+    }
+  }
+
   async function createDrop(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -61,7 +81,7 @@ export function Admin() {
       const now = new Date()
       const payload = {
         title,
-        description: 'Created from Admin UI',
+        description: description || null,
         starts_at: new Date(now.getTime() + offsetStartMin * 60000).toISOString(),
         claim_window_start: new Date(now.getTime() + offsetWindowStartMin * 60000).toISOString(),
         claim_window_end: new Date(now.getTime() + offsetWindowEndMin * 60000).toISOString(),
@@ -71,10 +91,35 @@ export function Admin() {
       await apiPost('/admin/drops', payload, headersToken)
       setInfo('Drop created')
       setTitle('New Drop')
+      setDescription('')
       setStock(100)
       await loadDrops()
     } catch (e: any) {
       setError(e.message || 'Create failed')
+    }
+  }
+
+  async function activateDrop(drop: Drop) {
+    setError(null)
+    try {
+      const now = new Date()
+      const claimWindowEnd = drop.claim_window_end ? new Date(drop.claim_window_end) : null
+      
+      // If claim window has expired, extend it to future
+      const updates: Partial<Drop> = { is_active: true }
+      if (claimWindowEnd && claimWindowEnd < now) {
+        // Extend claim window to 24 hours from now
+        const newEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        updates.claim_window_end = newEnd.toISOString()
+        setInfo('Drop activated and claim window extended')
+      } else {
+        setInfo('Drop activated')
+      }
+      
+      await apiPut<Drop>(`/admin/drops/${drop.id}`, updates, headersToken)
+      await loadDrops()
+    } catch (e: any) {
+      setError(e.message || 'Activate failed')
     }
   }
 
@@ -158,6 +203,9 @@ export function Admin() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-1">{d.title}</h3>
+                          {d.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">{d.description}</p>
+                          )}
                           <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
                             <span>Stock: {d.stock}</span>
                             <span>•</span>
@@ -190,6 +238,9 @@ export function Admin() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">{d.title}</h3>
+                          {d.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">{d.description}</p>
+                          )}
                           <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
                             <span>Stock: {d.stock}</span>
                             <span>•</span>
@@ -198,7 +249,7 @@ export function Admin() {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button className="btn btn-primary text-xs px-3 py-1.5" onClick={() => updateDrop(d.id, { is_active: true })}>Activate</button>
+                        <button className="btn btn-primary text-xs px-3 py-1.5" onClick={() => activateDrop(d)}>Activate</button>
                         <button className="btn btn-secondary text-xs px-3 py-1.5" onClick={() => setEditing(d)}>Edit</button>
                         <button className="btn btn-secondary text-xs px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => deleteDrop(d.id)}>Delete</button>
                       </div>
@@ -216,6 +267,25 @@ export function Admin() {
                 <label className="grid gap-1.5">
                   <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Title</span>
                   <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                </label>
+                <label className="grid gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Description</span>
+                    <button
+                      type="button"
+                      onClick={suggestDescription}
+                      disabled={suggesting || !title}
+                      className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded hover:bg-purple-200 dark:hover:bg-purple-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {suggesting ? 'Suggesting...' : '✨ AI Suggest'}
+                    </button>
+                  </div>
+                  <textarea
+                    className="input min-h-[80px] resize-y"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Enter description or use AI to suggest one..."
+                  />
                 </label>
                 <label className="grid gap-1.5">
                   <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Stock</span>
@@ -329,13 +399,32 @@ export function Admin() {
 }
 
 function EditForm({ drop, onSave, onCancel }: { drop: Drop; onSave: (updates: Partial<Drop>) => void; onCancel: () => void }) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+  const headersToken = useMemo(() => token ?? undefined, [token])
   const [title, setTitle] = useState(drop.title)
+  const [description, setDescription] = useState(drop.description || '')
   const [stock, setStock] = useState(drop.stock)
   const [isActive, setIsActive] = useState(drop.is_active)
+  const [suggesting, setSuggesting] = useState(false)
+
+  async function suggestDescription() {
+    if (!title || title.trim() === '') {
+      return
+    }
+    setSuggesting(true)
+    try {
+      const response = await apiPost<{ description: string }>('/admin/drops/suggest-description', { title }, headersToken)
+      setDescription(response.description)
+    } catch (e: any) {
+      // Silent fail
+    } finally {
+      setSuggesting(false)
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSave({ title, stock, is_active: isActive })
+    onSave({ title, description: description || null, stock, is_active: isActive })
   }
 
   return (
@@ -343,6 +432,25 @@ function EditForm({ drop, onSave, onCancel }: { drop: Drop; onSave: (updates: Pa
       <label className="grid gap-1">
         <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Title</span>
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required />
+      </label>
+      <label className="grid gap-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Description</span>
+          <button
+            type="button"
+            onClick={suggestDescription}
+            disabled={suggesting || !title}
+            className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded hover:bg-purple-200 dark:hover:bg-purple-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {suggesting ? 'Suggesting...' : '✨ AI Suggest'}
+          </button>
+        </div>
+        <textarea
+          className="input min-h-[80px] resize-y"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Enter description or use AI to suggest one..."
+        />
       </label>
       <label className="grid gap-1">
         <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Stock</span>

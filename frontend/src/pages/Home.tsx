@@ -52,20 +52,21 @@ export function Home() {
     try {
       const data = await apiGet<Drop[]>('/drops', headersToken)
       setDrops(data)
-      // Also load claimed drops
-      if (headersToken) {
-        try {
-          const claimed = await apiGet<Drop[]>('/drops/claimed', headersToken)
-          setClaimedDrops(claimed)
-        } catch (e) {
-          // Ignore if no claims or error
-          setClaimedDrops([])
-        }
-      }
     } catch (e: any) {
       setError(e.message || 'Failed to load drops')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadClaimedDrops() {
+    if (!headersToken) return
+    try {
+      const claimed = await apiGet<Drop[]>('/drops/claimed', headersToken)
+      setClaimedDrops(claimed)
+    } catch (e) {
+      // Ignore if no claims or error
+      setClaimedDrops([])
     }
   }
 
@@ -76,12 +77,12 @@ export function Home() {
     try {
       await apiPost(`/drops/${dropId}/join`, {}, headersToken)
       setInfo('Joined waitlist')
+      await loadDrops() // Refresh drops (claimed drops doesn't change)
     } catch (e: any) {
       // rollback on error
       setDrops(prev => prev.map(d => d.id === dropId ? { ...d, joined: false } : d))
       setError(e.message || 'Failed to join')
     } finally {
-      await loadDrops()
       setTimeout(() => setInfo(null), 1500)
     }
   }
@@ -93,12 +94,12 @@ export function Home() {
     try {
       await apiPost(`/drops/${dropId}/leave`, {}, headersToken)
       setInfo('Left waitlist')
+      await loadDrops() // Refresh drops (claimed drops doesn't change)
     } catch (e: any) {
       // rollback on error
       setDrops(prev => prev.map(d => d.id === dropId ? { ...d, joined: true } : d))
       setError(e.message || 'Failed to leave')
     } finally {
-      await loadDrops()
       setTimeout(() => setInfo(null), 1500)
     }
   }
@@ -109,7 +110,7 @@ export function Home() {
     try {
       await apiPost<{ code: string }>(`/drops/${dropId}/claim`, {}, headersToken)
       setInfo('Claim successful')
-      await loadDrops()
+      await Promise.all([loadDrops(), loadClaimedDrops()]) // Both need to update after claim
     } catch (e: any) {
       setError(e.message || 'Claim failed')
     }
@@ -117,6 +118,7 @@ export function Home() {
 
   useEffect(() => {
     loadDrops()
+    loadClaimedDrops() // Load claimed drops only on initial mount
   }, [])
 
   return (
@@ -160,6 +162,9 @@ export function Home() {
                       <span className="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 font-medium">Claimed</span>
                     )}
                   </div>
+                  {d.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{d.description}</p>
+                  )}
                   <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 mb-2">
                     <span>Stock: {d.stock}</span>
                   </div>
@@ -213,6 +218,9 @@ export function Home() {
                     <h4 className="font-semibold text-gray-800 dark:text-gray-100">{d.title}</h4>
                     <span className="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 font-medium">Claimed</span>
                   </div>
+                  {d.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{d.description}</p>
+                  )}
                   <div className="text-gray-600 dark:text-gray-400 text-sm mb-3">Stock: {d.stock}</div>
                   {d.claim_code && (
                     <div className="p-3 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg">

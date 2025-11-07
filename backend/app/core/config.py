@@ -29,6 +29,9 @@ class Settings:
     PRIORITY_COEFF_A: int = int(os.getenv("PRIORITY_COEFF_A", "8"))
     PRIORITY_COEFF_B: int = int(os.getenv("PRIORITY_COEFF_B", "13"))
     PRIORITY_COEFF_C: int = int(os.getenv("PRIORITY_COEFF_C", "4"))
+    
+    # AI Configuration
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
 
 settings = Settings()
