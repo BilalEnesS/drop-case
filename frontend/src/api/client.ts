@@ -11,7 +11,17 @@ export async function apiGet<T>(path: string, token?: string): Promise<T> {
     const text = await res.text()
     throw new Error(`HTTP ${res.status}: ${text}`)
   }
-  return res.json() as Promise<T>
+  // Check if response has content
+  const contentType = res.headers.get('content-type')
+  const contentLength = res.headers.get('content-length')
+  if (res.status === 204 || contentLength === '0' || !contentType?.includes('application/json')) {
+    return undefined as T
+  }
+  const text = await res.text()
+  if (!text.trim()) {
+    return undefined as T
+  }
+  return JSON.parse(text) as T
 }
 
 export async function apiPost<T>(path: string, body: unknown, token?: string): Promise<T> {
@@ -27,7 +37,20 @@ export async function apiPost<T>(path: string, body: unknown, token?: string): P
     const text = await res.text()
     throw new Error(`HTTP ${res.status}: ${text}`)
   }
-  return res.json() as Promise<T>
+  // Check if response has content (204 No Content or empty response)
+  if (res.status === 204) {
+    return undefined as T
+  }
+  const contentType = res.headers.get('content-type')
+  const contentLength = res.headers.get('content-length')
+  if (contentLength === '0' || !contentType?.includes('application/json')) {
+    return undefined as T
+  }
+  const text = await res.text()
+  if (!text.trim()) {
+    return undefined as T
+  }
+  return JSON.parse(text) as T
 }
 
 export async function apiPut<T>(path: string, body: unknown, token?: string): Promise<T> {
@@ -43,10 +66,20 @@ export async function apiPut<T>(path: string, body: unknown, token?: string): Pr
     const text = await res.text()
     throw new Error(`HTTP ${res.status}: ${text}`)
   }
+  // Check if response has content (204 No Content or empty response)
   if (res.status === 204) {
     return undefined as T
   }
-  return res.json() as Promise<T>
+  const contentType = res.headers.get('content-type')
+  const contentLength = res.headers.get('content-length')
+  if (contentLength === '0' || !contentType?.includes('application/json')) {
+    return undefined as T
+  }
+  const text = await res.text()
+  if (!text.trim()) {
+    return undefined as T
+  }
+  return JSON.parse(text) as T
 }
 
 export async function apiDelete(path: string, token?: string): Promise<void> {
