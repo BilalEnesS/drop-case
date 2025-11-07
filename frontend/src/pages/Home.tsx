@@ -170,8 +170,21 @@ export function Home() {
                   </div>
                   {d.claim_code && (
                     <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">Code: </span>
-                      <span className="font-mono font-semibold text-green-700 dark:text-green-400">{d.claim_code}</span>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">📋 Copy your one-time claim code:</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-semibold text-green-700 dark:text-green-400 flex-1 break-all">{d.claim_code}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(d.claim_code || '')
+                            setInfo('Code copied!')
+                            setTimeout(() => setInfo(null), 2000)
+                          }}
+                          className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 rounded border border-green-300 dark:border-green-700 transition-colors"
+                          title="Copy code"
+                        >
+                          📋
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -200,6 +213,9 @@ export function Home() {
                       <span className="text-green-700 dark:text-green-400 text-sm font-medium">✓ Claimed</span>
                     </div>
                   )}
+                  <button className="btn btn-secondary w-full text-sm" onClick={() => navigate(`/drops/${d.id}`)}>
+                    View Details
+                  </button>
                 </div>
               </div>
             ))}
@@ -224,10 +240,26 @@ export function Home() {
                   <div className="text-gray-600 dark:text-gray-400 text-sm mb-3">Stock: {d.stock}</div>
                   {d.claim_code && (
                     <div className="p-3 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg">
-                      <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Claim Code</div>
-                      <div className="font-mono font-bold text-green-700 dark:text-green-400 text-lg">{d.claim_code}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">📋 Copy your one-time claim code:</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-mono font-bold text-green-700 dark:text-green-400 text-lg flex-1 break-all">{d.claim_code}</div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(d.claim_code || '')
+                            setInfo('Code copied!')
+                            setTimeout(() => setInfo(null), 2000)
+                          }}
+                          className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 rounded border border-green-300 dark:border-green-700 transition-colors"
+                          title="Copy code"
+                        >
+                          📋
+                        </button>
+                      </div>
                     </div>
                   )}
+                  <button className="btn btn-secondary w-full text-sm mt-3" onClick={() => navigate(`/drops/${d.id}`)}>
+                    View Details
+                  </button>
                 </div>
               </div>
             ))}

@@ -4,6 +4,7 @@ import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
 import { Home } from './pages/Home'
 import { Admin } from './pages/Admin'
+import { DropDetail } from './pages/DropDetail'
 
 export default function App() {
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/" element={<Home />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/drops/:id" element={<DropDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
