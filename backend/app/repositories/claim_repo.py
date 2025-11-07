@@ -13,15 +13,17 @@ async def get_claim_by_user_and_drop(db: AsyncSession, user_id: int, drop_id: in
 
 
 async def create_claim_record(db: AsyncSession, user_id: int, drop_id: int, code: str) -> Claim:
+	# Create claim record (caller handles commit)
 	claim = Claim(user_id=user_id, drop_id=drop_id, code=code, status=ClaimStatus.ISSUED)
 	db.add(claim)
-	await db.commit()
+	await db.flush()  # Flush to get ID without committing
 	await db.refresh(claim)
 	return claim
 
 
 async def try_decrement_stock(db: AsyncSession, drop_id: int) -> bool:
 	# Atomically decrement stock if > 0; return True if updated
+	# Note: Caller should handle commit for transaction safety
 	stmt = (
 		update(Drop)
 		.where(and_(Drop.id == drop_id, Drop.stock > 0))
@@ -29,7 +31,6 @@ async def try_decrement_stock(db: AsyncSession, drop_id: int) -> bool:
 		.execution_options(synchronize_session=False)
 	)
 	res = await db.execute(stmt)
-	await db.commit()
 	return res.rowcount == 1
 
 
