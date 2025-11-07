@@ -6,6 +6,7 @@ from app.routers import admin as admin_router
 from app.core.config import settings
 from app.db.session import engine
 from app.db.base import Base
+from app.db.redis import close_redis
 from starlette.middleware.cors import CORSMiddleware
 
 
@@ -48,6 +49,13 @@ def create_app() -> FastAPI:
 					# Column might already exist, ignore
 					await conn.rollback()
 					pass
+		# Redis connection is lazy - initialized on first use
+		# No need to connect at startup
+
+	@app.on_event("shutdown")
+	async def on_shutdown() -> None:
+		# Close Redis connection
+		await close_redis()
 
 	return app
 

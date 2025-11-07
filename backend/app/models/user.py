@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -11,6 +11,10 @@ class UserRole(str):
 	ADMIN = "admin"
 
 
+def utc_now():
+	return datetime.now(tz=timezone.utc)
+
+
 class User(Base):
 	__tablename__ = "users"
 
@@ -18,7 +22,7 @@ class User(Base):
 	email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
 	password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
 	role: Mapped[str] = mapped_column(Enum(UserRole.USER, UserRole.ADMIN, name="user_role"), default=UserRole.USER, nullable=False)
-	created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+	created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 	rapid_actions: Mapped[int] = mapped_column(default=0, nullable=False)  # Track rapid join/leave actions
 
 

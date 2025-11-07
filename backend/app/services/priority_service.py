@@ -26,14 +26,25 @@ class PriorityService:
 		
 		# signup_latency_ms: How fast user signed up after drop started (ms)
 		# If user signed up before drop started, use 0
-		if user.created_at > drop.starts_at:
-			signup_latency_ms = int((user.created_at - drop.starts_at).total_seconds() * 1000)
+		# Ensure both are timezone-aware for comparison
+		user_created = user.created_at
+		drop_starts = drop.starts_at
+		if user_created.tzinfo is None:
+			user_created = user_created.replace(tzinfo=timezone.utc)
+		if drop_starts.tzinfo is None:
+			drop_starts = drop_starts.replace(tzinfo=timezone.utc)
+		
+		if user_created > drop_starts:
+			signup_latency_ms = int((user_created - drop_starts).total_seconds() * 1000)
 		else:
 			signup_latency_ms = 0
 		
 		# account_age_days: Account age in days
 		now = datetime.now(tz=timezone.utc)
-		account_age_days = int((now - user.created_at).total_seconds() / 86400)
+		user_created = user.created_at
+		if user_created.tzinfo is None:
+			user_created = user_created.replace(tzinfo=timezone.utc)
+		account_age_days = int((now - user_created).total_seconds() / 86400)
 		
 		# rapid_actions: Already tracked in user.rapid_actions
 		rapid_actions = user.rapid_actions
@@ -89,11 +100,11 @@ class PriorityService:
 
 	async def increment_rapid_actions(self, user_id: int) -> None:
 		# Increment rapid_actions counter for user
+		# Note: Does not commit - caller should handle transaction
 		from sqlalchemy import update
 		await self.db.execute(
 			update(User)
 			.where(User.id == user_id)
 			.values(rapid_actions=User.rapid_actions + 1)
 		)
-		await self.db.commit()
 

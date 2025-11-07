@@ -23,13 +23,22 @@ class DropService:
 
 	async def _auto_deactivate_expired(self) -> None:
 		# Mark drops as inactive if claim_window_end has passed
-		from datetime import datetime, timezone
+		# Fetch all active drops and check in Python to avoid timezone issues
 		now = datetime.now(tz=timezone.utc)
-		await self.db.execute(
-			update(Drop)
-			.where(Drop.claim_window_end < now, Drop.is_active == True)  # noqa: E712
-			.values(is_active=False)
+		drops_res = await self.db.execute(
+			select(Drop).where(Drop.is_active == True)  # noqa: E712
 		)
+		drops = drops_res.scalars().all()
+		
+		for drop in drops:
+			window_end = drop.claim_window_end
+			# Ensure timezone-aware for comparison
+			if window_end.tzinfo is None:
+				window_end = window_end.replace(tzinfo=timezone.utc)
+			
+			if window_end < now:
+				drop.is_active = False
+		
 		await self.db.commit()
 
 	async def join_waitlist(self, user_id: int, drop_id: int) -> None:
@@ -43,7 +52,7 @@ class DropService:
 		priority_svc = PriorityService(self.db)
 		await priority_svc.increment_rapid_actions(user_id)
 		
-		# Idempotent join
+		# Idempotent join (upsert_waitlist handles its own commit)
 		await upsert_waitlist(self.db, user_id=user_id, drop_id=drop_id)
 
 	async def leave_waitlist(self, user_id: int, drop_id: int) -> None:
@@ -51,7 +60,7 @@ class DropService:
 		priority_svc = PriorityService(self.db)
 		await priority_svc.increment_rapid_actions(user_id)
 		
-		# Idempotent leave
+		# Idempotent leave (delete_waitlist handles its own commit)
 		await delete_waitlist(self.db, user_id=user_id, drop_id=drop_id)
 
 	async def claim(self, user_id: int, drop_id: int) -> str:
@@ -60,9 +69,18 @@ class DropService:
 		drop: Drop | None = drop_row.scalar_one_or_none()
 		if not drop or not drop.is_active:
 			raise ValueError("drop_not_available")
-		# Window check
+		# Window check - ensure all datetime objects are timezone-aware
 		now = datetime.now(tz=timezone.utc)
-		if not (drop.claim_window_start <= now <= drop.claim_window_end):
+		window_start = drop.claim_window_start
+		window_end = drop.claim_window_end
+		
+		# Ensure timezone-aware for comparison
+		if window_start.tzinfo is None:
+			window_start = window_start.replace(tzinfo=timezone.utc)
+		if window_end.tzinfo is None:
+			window_end = window_end.replace(tzinfo=timezone.utc)
+		
+		if not (window_start <= now <= window_end):
 			raise ValueError("claim_window_closed")
 		# Idempotent: existing claim -> return code
 		existing = await get_claim_by_user_and_drop(self.db, user_id=user_id, drop_id=drop_id)
