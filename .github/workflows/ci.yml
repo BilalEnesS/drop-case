@@ -4,10 +4,10 @@ name: CI
 on:
   # Run on every push and pull request
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'feature/**' ]
   pull_request:
     branches: [ main, develop ]
-  # Also run on feature branches
+  # Manual trigger
   workflow_dispatch:
 
 jobs:
