@@ -7,6 +7,8 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   # Backend tests
@@ -36,8 +38,13 @@ jobs:
       # 4. Run tests
       - name: Run tests
         working-directory: ./backend
+        env:
+          ENV: development
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          JWT_SECRET: test-secret-key
+          REDIS_URL: "redis://localhost:6379/0"
         run: |
-          pytest -v
+          pytest -v --tb=short
 
   # Frontend tests
   frontend-test:
