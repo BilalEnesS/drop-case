@@ -31,6 +31,13 @@ export function Admin() {
   const [editing, setEditing] = useState<Drop | null>(null)
   const [viewingWaitlist, setViewingWaitlist] = useState<number | null>(null)
   const [waitlistData, setWaitlistData] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState<'drops' | 'users'>('drops')
+  
+  // Users management state
+  const [users, setUsers] = useState<any[]>([])
+  const [userEmail, setUserEmail] = useState('')
+  const [userPassword, setUserPassword] = useState('')
+  const [userRole, setUserRole] = useState<'user' | 'admin'>('user')
 
   // Create form state
   const [title, setTitle] = useState('New Drop')
@@ -53,6 +60,62 @@ export function Admin() {
       setError(e.message || 'Failed to load drops')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadUsers() {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await apiGet<any[]>('/admin/users', headersToken)
+      setUsers(data)
+    } catch (e: any) {
+      console.error('Load users error:', e)
+      setError(e.message || 'Failed to load users')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function createUser(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    try {
+      await apiPost('/admin/users', {
+        email: userEmail,
+        password: userPassword,
+        role: userRole
+      }, headersToken)
+      setInfo('User created')
+      setUserEmail('')
+      setUserPassword('')
+      setUserRole('user')
+      await loadUsers()
+    } catch (e: any) {
+      setError(e.message || 'Failed to create user')
+    }
+  }
+
+  async function updateUserRole(userId: number, newRole: 'user' | 'admin') {
+    setError(null)
+    try {
+      await apiPut(`/admin/users/${userId}/role`, { role: newRole }, headersToken)
+      setInfo('User role updated')
+      await loadUsers()
+    } catch (e: any) {
+      setError(e.message || 'Failed to update user role')
+    }
+  }
+
+  async function deleteUser(userId: number) {
+    if (!confirm('Delete this user?')) return
+    setError(null)
+    try {
+      await apiDelete(`/admin/users/${userId}`, headersToken)
+      setInfo('User deleted')
+      await loadUsers()
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete user')
     }
   }
 
@@ -162,9 +225,13 @@ export function Admin() {
 
   useEffect(() => {
     if (token && role === 'admin') {
-      loadDrops()
+      if (activeTab === 'drops') {
+        loadDrops()
+      } else if (activeTab === 'users') {
+        loadUsers()
+      }
     }
-  }, [token, role])
+  }, [token, role, activeTab])
 
   const activeDrops = drops.filter(d => d.is_active)
   const inactiveDrops = drops.filter(d => !d.is_active)
@@ -186,6 +253,31 @@ export function Admin() {
         {info && <div className="mb-4 text-green-700 dark:text-green-400 text-sm bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">{info}</div>}
         {error && <div className="mb-4 text-red-700 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">{error}</div>}
 
+        {/* Tabs */}
+        <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setActiveTab('drops')}
+            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'drops'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+            }`}
+          >
+            Drops
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'users'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+            }`}
+          >
+            Users
+          </button>
+        </div>
+
+        {activeTab === 'drops' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
             <div className="card p-6 mb-6">
@@ -330,6 +422,107 @@ export function Admin() {
             </div>
           </div>
         </div>
+        )}
+
+        {activeTab === 'users' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-2">
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Users</h2>
+                <button onClick={loadUsers} className="btn btn-secondary text-sm" disabled={loading}>Refresh</button>
+              </div>
+              {loading ? (
+                <div className="text-gray-500 dark:text-gray-400 text-center py-8">Loading...</div>
+              ) : users.length === 0 ? (
+                <div className="text-gray-500 dark:text-gray-400 text-center py-8">No users</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left p-3 text-gray-700 dark:text-gray-300 font-semibold">ID</th>
+                        <th className="text-left p-3 text-gray-700 dark:text-gray-300 font-semibold">Email</th>
+                        <th className="text-left p-3 text-gray-700 dark:text-gray-300 font-semibold">Role</th>
+                        <th className="text-left p-3 text-gray-700 dark:text-gray-300 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map(user => (
+                        <tr key={user.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                          <td className="p-3 text-gray-800 dark:text-gray-200">{user.id}</td>
+                          <td className="p-3 text-gray-800 dark:text-gray-200">{user.email}</td>
+                          <td className="p-3">
+                            <select
+                              value={user.role}
+                              onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin')}
+                              className="input text-sm py-1 px-2"
+                            >
+                              <option value="user">User</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          </td>
+                          <td className="p-3">
+                            <button
+                              onClick={() => deleteUser(user.id)}
+                              className="btn btn-secondary text-xs px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="lg:col-span-1">
+            <div className="card p-6 sticky top-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Create New User</h2>
+              <form onSubmit={createUser} className="grid gap-4">
+                <label className="grid gap-1.5">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Email</span>
+                  <input
+                    className="input"
+                    type="email"
+                    value={userEmail}
+                    onChange={(e) => setUserEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    required
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Password</span>
+                  <input
+                    className="input"
+                    type="password"
+                    value={userPassword}
+                    onChange={(e) => setUserPassword(e.target.value)}
+                    placeholder="••••••••"
+                    minLength={8}
+                    required
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Role</span>
+                  <select
+                    className="input"
+                    value={userRole}
+                    onChange={(e) => setUserRole(e.target.value as 'user' | 'admin')}
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <button className="btn btn-primary w-full" type="submit">Create User</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        )}
       </div>
 
       {editing && (
