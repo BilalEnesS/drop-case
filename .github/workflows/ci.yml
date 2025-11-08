@@ -4,7 +4,7 @@ name: CI
 on:
   # Run on every push and pull request
   push:
-    branches: [ main, develop, 'feature/**' ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
   # Manual trigger
@@ -44,7 +44,7 @@ jobs:
           JWT_SECRET: test-secret-key
           REDIS_URL: redis://localhost:6379/0
         run: |
-          pytest -v --tb=short --maxfail=1
+          pytest -v --tb=short
 
   # Frontend tests
   frontend-test:
@@ -72,7 +72,7 @@ jobs:
       # 4. Run tests
       - name: Run tests
         working-directory: ./frontend
-        run: npm run test:ci -- --reporter=verbose
+        run: npm run test:ci
       
       # 5. (Optional) Build check
       - name: Build check
