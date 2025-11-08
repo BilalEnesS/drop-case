@@ -2,6 +2,27 @@ DropSpot – Full Stack Challenge (FastAPI + React)
 
 Başlangıç Zamanı: 202511061423
 
+## Seed ve Katsayılar
+
+**Seed:** `4f1f6e19edf7`
+
+**Katsayılar:**
+- A = 11
+- B = 16
+- C = 5
+
+**Priority Score Formülü:**
+```
+priority_score = base + (signup_latency_ms % 11) + (account_age_days % 16) - (rapid_actions % 5)
+```
+
+**Seed Hesaplama Detayları:**
+- Remote URL: `https://github.com/BilalEnesS/drop-case.git`
+- İlk commit epoch: `1762428071`
+- Başlangıç zamanı: `202511061423`
+- Raw input: `https://github.com/BilalEnesS/drop-case.git|1762428071|202511061423`
+- SHA256 hash (ilk 12 karakter): `4f1f6e19edf7`
+
 Özet
 - Amaç: Sınırlı stoklu drop’larda bekleme listesi ve claim penceresi akışı.
 - Stack: Backend FastAPI + SQLAlchemy + PostgreSQL (lokalde SQLite), Frontend React (TS) + Tailwind + Zustand + React Query, Cache/RateLimit için Redis.
@@ -73,10 +94,25 @@ Kurulum (kısa not)
 - Frontend: React + TS + Tailwind. API çağrıları için React Query, global state için Zustand.
 - Redis: Cache ve rate limit.
 
-Test ve CI
-- Backend: unit (service), integration (API/idempotency)
-- Frontend: 2 component testi veya e2e smoke
-- CI: GitHub Actions ile install, lint, test
+Test ve CI/CD
+
+**Backend Testleri:**
+- Unit test: `pytest tests/test_services.py`
+- Integration test: `pytest tests/test_api_idempotency.py`
+- Tüm testler: `pytest -v`
+
+**Frontend Testleri:**
+- Component testleri: `npm test` (watch mode) veya `npm run test:ci` (CI mode)
+- Test dosyaları: `src/components/__tests__/`, `src/pages/__tests__/`
+
+**CI/CD Pipeline:**
+GitHub Actions ile otomatik test çalıştırma:
+- Her push ve pull request'te otomatik çalışır
+- Backend: Python 3.11, pytest
+- Frontend: Node.js 20, Vitest
+- Workflow dosyası: `.github/workflows/ci.yml`
+
+CI durumunu görmek için: GitHub repo > Actions sekmesi
 
 Ekran Görüntüleri
 - Drop listesi, claim ekranı, admin panel (teslim öncesi eklenecek)
