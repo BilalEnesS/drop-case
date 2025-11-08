@@ -1,6 +1,6 @@
 # DropSpot – Full Stack Challenge (FastAPI + React)
 
-**Başlangıç Zamanı:** 202511061423
+**Başlangıç Zamanı:** 06.11.2025 14:23
 
 ## Seed ve Katsayılar
 
