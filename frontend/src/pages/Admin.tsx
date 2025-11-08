@@ -36,9 +36,9 @@ export function Admin() {
   const [title, setTitle] = useState('New Drop')
   const [description, setDescription] = useState('')
   const [stock, setStock] = useState(100)
-  const [offsetStartMin, setOffsetStartMin] = useState(10)
-  const [offsetWindowStartMin, setOffsetWindowStartMin] = useState(15)
-  const [offsetWindowEndMin, setOffsetWindowEndMin] = useState(45)
+  const [startsAt, setStartsAt] = useState('')
+  const [claimWindowStart, setClaimWindowStart] = useState('')
+  const [claimWindowEnd, setClaimWindowEnd] = useState('')
   const [suggesting, setSuggesting] = useState(false)
 
   async function loadDrops() {
@@ -78,13 +78,12 @@ export function Admin() {
     e.preventDefault()
     setError(null)
     try {
-      const now = new Date()
       const payload = {
         title,
         description: description || null,
-        starts_at: new Date(now.getTime() + offsetStartMin * 60000).toISOString(),
-        claim_window_start: new Date(now.getTime() + offsetWindowStartMin * 60000).toISOString(),
-        claim_window_end: new Date(now.getTime() + offsetWindowEndMin * 60000).toISOString(),
+        starts_at: startsAt ? new Date(startsAt).toISOString() : new Date().toISOString(),
+        claim_window_start: claimWindowStart ? new Date(claimWindowStart).toISOString() : new Date().toISOString(),
+        claim_window_end: claimWindowEnd ? new Date(claimWindowEnd).toISOString() : new Date().toISOString(),
         stock,
         is_active: true,
       }
@@ -93,6 +92,9 @@ export function Admin() {
       setTitle('New Drop')
       setDescription('')
       setStock(100)
+      setStartsAt('')
+      setClaimWindowStart('')
+      setClaimWindowEnd('')
       await loadDrops()
     } catch (e: any) {
       setError(e.message || 'Create failed')
@@ -293,16 +295,34 @@ export function Admin() {
                 </label>
                 <div className="grid grid-cols-1 gap-3">
                   <label className="grid gap-1.5">
-                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Start (minutes from now)</span>
-                    <input className="input" type="number" value={offsetStartMin} onChange={(e) => setOffsetStartMin(parseInt(e.target.value || '0'))} />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Start Date & Time</span>
+                    <input 
+                      className="input" 
+                      type="datetime-local" 
+                      value={startsAt} 
+                      onChange={(e) => setStartsAt(e.target.value)} 
+                      required
+                    />
                   </label>
                   <label className="grid gap-1.5">
-                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Claim Window Start (minutes from now)</span>
-                    <input className="input" type="number" value={offsetWindowStartMin} onChange={(e) => setOffsetWindowStartMin(parseInt(e.target.value || '0'))} />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Claim Window Start</span>
+                    <input 
+                      className="input" 
+                      type="datetime-local" 
+                      value={claimWindowStart} 
+                      onChange={(e) => setClaimWindowStart(e.target.value)} 
+                      required
+                    />
                   </label>
                   <label className="grid gap-1.5">
-                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Claim Window End (minutes from now)</span>
-                    <input className="input" type="number" value={offsetWindowEndMin} onChange={(e) => setOffsetWindowEndMin(parseInt(e.target.value || '0'))} />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Claim Window End</span>
+                    <input 
+                      className="input" 
+                      type="datetime-local" 
+                      value={claimWindowEnd} 
+                      onChange={(e) => setClaimWindowEnd(e.target.value)} 
+                      required
+                    />
                   </label>
                 </div>
                 <button className="btn btn-primary w-full" type="submit">Create Drop</button>
@@ -405,6 +425,27 @@ function EditForm({ drop, onSave, onCancel }: { drop: Drop; onSave: (updates: Pa
   const [description, setDescription] = useState(drop.description || '')
   const [stock, setStock] = useState(drop.stock)
   const [isActive, setIsActive] = useState(drop.is_active)
+  const [startsAt, setStartsAt] = useState(() => {
+    if (drop.starts_at) {
+      const d = new Date(drop.starts_at)
+      return d.toISOString().slice(0, 16)
+    }
+    return ''
+  })
+  const [claimWindowStart, setClaimWindowStart] = useState(() => {
+    if (drop.claim_window_start) {
+      const d = new Date(drop.claim_window_start)
+      return d.toISOString().slice(0, 16)
+    }
+    return ''
+  })
+  const [claimWindowEnd, setClaimWindowEnd] = useState(() => {
+    if (drop.claim_window_end) {
+      const d = new Date(drop.claim_window_end)
+      return d.toISOString().slice(0, 16)
+    }
+    return ''
+  })
   const [suggesting, setSuggesting] = useState(false)
 
   async function suggestDescription() {
@@ -424,7 +465,22 @@ function EditForm({ drop, onSave, onCancel }: { drop: Drop; onSave: (updates: Pa
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSave({ title, description: description || null, stock, is_active: isActive })
+    const updates: Partial<Drop> = {
+      title,
+      description: description || null,
+      stock,
+      is_active: isActive
+    }
+    if (startsAt) {
+      updates.starts_at = new Date(startsAt).toISOString()
+    }
+    if (claimWindowStart) {
+      updates.claim_window_start = new Date(claimWindowStart).toISOString()
+    }
+    if (claimWindowEnd) {
+      updates.claim_window_end = new Date(claimWindowEnd).toISOString()
+    }
+    onSave(updates)
   }
 
   return (
@@ -455,6 +511,33 @@ function EditForm({ drop, onSave, onCancel }: { drop: Drop; onSave: (updates: Pa
       <label className="grid gap-1">
         <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Stock</span>
         <input className="input" type="number" value={stock} onChange={(e) => setStock(parseInt(e.target.value || '0'))} min={0} />
+      </label>
+      <label className="grid gap-1">
+        <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Start Date & Time</span>
+        <input 
+          className="input" 
+          type="datetime-local" 
+          value={startsAt} 
+          onChange={(e) => setStartsAt(e.target.value)} 
+        />
+      </label>
+      <label className="grid gap-1">
+        <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Claim Window Start</span>
+        <input 
+          className="input" 
+          type="datetime-local" 
+          value={claimWindowStart} 
+          onChange={(e) => setClaimWindowStart(e.target.value)} 
+        />
+      </label>
+      <label className="grid gap-1">
+        <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Claim Window End</span>
+        <input 
+          className="input" 
+          type="datetime-local" 
+          value={claimWindowEnd} 
+          onChange={(e) => setClaimWindowEnd(e.target.value)} 
+        />
       </label>
       <label className="flex items-center gap-2">
         <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
