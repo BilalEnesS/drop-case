@@ -40,9 +40,9 @@ jobs:
         working-directory: ./backend
         env:
           ENV: development
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           JWT_SECRET: test-secret-key
-          REDIS_URL: redis://localhost:6379/0
+          REDIS_URL: "redis://localhost:6379/0"
         run: |
           pytest -v --tb=short
 
