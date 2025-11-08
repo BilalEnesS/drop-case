@@ -60,6 +60,10 @@ async def join_waitlist(
 	user = Depends(get_current_user),
 	db: AsyncSession = Depends(get_session),
 ) -> None:
+	# Admin users cannot join waitlist
+	if user.role == "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_cannot_join")
+	
 	# Rate limiting
 	from app.core.rate_limit import rate_limit
 	await rate_limit(request, limit=20, window=60, key_prefix="drop_join", user_id=user.id)
@@ -72,8 +76,11 @@ async def join_waitlist(
 		await db.commit()
 	except ValueError as e:
 		await db.rollback()
-		if str(e) == "drop_not_available":
+		error_msg = str(e)
+		if error_msg == "drop_not_available":
 			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="drop_not_available")
+		if error_msg == "drop_not_started":
+			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="drop_not_started")
 		raise
 
 
@@ -84,6 +91,10 @@ async def leave_waitlist(
 	user = Depends(get_current_user),
 	db: AsyncSession = Depends(get_session),
 ) -> None:
+	# Admin users cannot leave waitlist
+	if user.role == "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_cannot_leave")
+	
 	# Rate limiting
 	from app.core.rate_limit import rate_limit
 	await rate_limit(request, limit=20, window=60, key_prefix="drop_leave", user_id=user.id)
@@ -106,6 +117,10 @@ async def claim(
 	user = Depends(get_current_user),
 	db: AsyncSession = Depends(get_session),
 ):
+	# Admin users cannot claim drops
+	if user.role == "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_cannot_claim")
+	
 	# Rate limiting
 	from app.core.rate_limit import rate_limit
 	await rate_limit(request, limit=5, window=60, key_prefix="drop_claim", user_id=user.id)
@@ -120,6 +135,8 @@ async def claim(
 		m = str(e)
 		if m == "drop_not_available":
 			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=m)
+		if m == "drop_not_started":
+			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=m)
 		if m == "claim_window_closed":
 			raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=m)
 		if m == "not_in_waitlist":
@@ -139,6 +156,10 @@ async def list_claimed_drops(
 	user = Depends(get_current_user),
 	db: AsyncSession = Depends(get_session),
 ) -> List[DropListItem]:
+	# Admin users cannot view claimed drops (admin only manages, doesn't participate)
+	if user.role == "admin":
+		return []
+	
 	# Return all drops user has claimed (active or inactive) with codes
 	from app.repositories.claim_repo import get_claim_by_user_and_drop
 	from app.models import Claim, Drop

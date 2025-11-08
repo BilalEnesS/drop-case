@@ -27,15 +27,22 @@ function isWithinClaimWindow(d: Drop): boolean {
 export function Home() {
   const navigate = useNavigate()
   const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+  const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+  const isAdmin = role === 'admin'
 
   useEffect(() => {
     if (!token) {
       navigate('/login', { replace: true })
     }
-  }, [token, navigate])
+    // Redirect admin to admin panel
+    if (isAdmin) {
+      navigate('/admin', { replace: true })
+    }
+  }, [token, isAdmin, navigate])
 
   function logout() {
     localStorage.removeItem('access_token')
+    localStorage.removeItem('role')
     navigate('/login', { replace: true })
   }
 
@@ -60,7 +67,7 @@ export function Home() {
   }
 
   async function loadClaimedDrops() {
-    if (!headersToken) return
+    if (!headersToken || isAdmin) return // Admin doesn't have claimed drops
     try {
       const claimed = await apiGet<Drop[]>('/drops/claimed', headersToken)
       setClaimedDrops(claimed)
@@ -189,28 +196,37 @@ export function Home() {
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
-                  {!d.joined && !d.claimed && (
-                    <button className="btn btn-primary w-full" onClick={() => join(d.id)}>
-                      Join Waitlist
-                    </button>
-                  )}
-                  {d.joined && !d.claimed && (
+                  {!isAdmin && (
                     <>
-                      {isWithinClaimWindow(d) ? (
-                        <button className="btn btn-primary w-full" onClick={() => claim(d.id)}>
-                          Claim Now
+                      {!d.joined && !d.claimed && (
+                        <button className="btn btn-primary w-full" onClick={() => join(d.id)}>
+                          Join Waitlist
                         </button>
-                      ) : (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">Claim window not open</div>
                       )}
-                      <button className="btn btn-secondary w-full text-sm" onClick={() => leave(d.id)}>
-                        Leave Waitlist
-                      </button>
+                      {d.joined && !d.claimed && (
+                        <>
+                          {isWithinClaimWindow(d) ? (
+                            <button className="btn btn-primary w-full" onClick={() => claim(d.id)}>
+                              Claim Now
+                            </button>
+                          ) : (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">Claim window not open</div>
+                          )}
+                          <button className="btn btn-secondary w-full text-sm" onClick={() => leave(d.id)}>
+                            Leave Waitlist
+                          </button>
+                        </>
+                      )}
+                      {d.claimed && (
+                        <div className="text-center py-2">
+                          <span className="text-green-700 dark:text-green-400 text-sm font-medium">✓ Claimed</span>
+                        </div>
+                      )}
                     </>
                   )}
-                  {d.claimed && (
-                    <div className="text-center py-2">
-                      <span className="text-green-700 dark:text-green-400 text-sm font-medium">✓ Claimed</span>
+                  {isAdmin && (
+                    <div className="text-center py-2 text-sm text-gray-500 dark:text-gray-400">
+                      Admin view only
                     </div>
                   )}
                   <button className="btn btn-secondary w-full text-sm" onClick={() => navigate(`/drops/${d.id}`)}>
@@ -223,7 +239,7 @@ export function Home() {
         )}
       </section>
 
-      {claimedDrops.length > 0 && (
+      {!isAdmin && claimedDrops.length > 0 && (
         <section className="card p-6 mt-6">
           <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Your Claimed Drops</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

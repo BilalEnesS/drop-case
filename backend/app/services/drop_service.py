@@ -42,11 +42,19 @@ class DropService:
 		await self.db.commit()
 
 	async def join_waitlist(self, user_id: int, drop_id: int) -> None:
-		# Ensure drop exists and active
-		exists = await self.db.execute(select(Drop.id, Drop.is_active).where(Drop.id == drop_id))
-		row = exists.first()
-		if row is None or row.is_active is False:
+		# Ensure drop exists, is active, and has started
+		drop_row = await self.db.execute(select(Drop).where(Drop.id == drop_id))
+		drop: Drop | None = drop_row.scalar_one_or_none()
+		if not drop or not drop.is_active:
 			raise ValueError("drop_not_available")
+		
+		# Check if drop has started
+		now = datetime.now(tz=timezone.utc)
+		starts_at = drop.starts_at
+		if starts_at.tzinfo is None:
+			starts_at = starts_at.replace(tzinfo=timezone.utc)
+		if starts_at > now:
+			raise ValueError("drop_not_started")
 		
 		# Track rapid action (every join/leave counts)
 		priority_svc = PriorityService(self.db)
@@ -69,8 +77,16 @@ class DropService:
 		drop: Drop | None = drop_row.scalar_one_or_none()
 		if not drop or not drop.is_active:
 			raise ValueError("drop_not_available")
-		# Window check - ensure all datetime objects are timezone-aware
+		
+		# Check if drop has started
 		now = datetime.now(tz=timezone.utc)
+		starts_at = drop.starts_at
+		if starts_at.tzinfo is None:
+			starts_at = starts_at.replace(tzinfo=timezone.utc)
+		if starts_at > now:
+			raise ValueError("drop_not_started")
+		
+		# Window check - ensure all datetime objects are timezone-aware
 		window_start = drop.claim_window_start
 		window_end = drop.claim_window_end
 		

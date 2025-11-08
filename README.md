@@ -89,10 +89,45 @@ priority_score = base + (signup_latency_ms % A) + (account_age_days % B) - (rapi
 
 Seed değeri ve katsayılar backend'de environment variable veya config dosyasında saklanır.
 
-Kurulum (kısa not)
-- Backend: FastAPI, SQLAlchemy. DB için PostgreSQL veya lokalde SQLite. Ortam değişkenleri `.env`.
-- Frontend: React + TS + Tailwind. API çağrıları için React Query, global state için Zustand.
-- Redis: Cache ve rate limit.
+Kurulum
+
+**Docker Compose ile (Önerilen):**
+```bash
+# 1. .env dosyası oluştur (root dizinde) - OPSİYONEL
+# POSTGRES_USER=postgres
+# POSTGRES_PASSWORD=1234
+# POSTGRES_DB=dropspot
+# JWT_SECRET=your-secret-key
+# OPENAI_API_KEY=your-api-key (opsiyonel)
+
+# 2. Tüm servisleri başlat (PostgreSQL, Redis, Backend, Frontend)
+docker-compose up -d
+
+# 3. Log'ları görüntüle
+docker-compose logs -f
+
+# 4. Servisleri durdur
+docker-compose down
+```
+
+**Notlar:**
+- PostgreSQL Docker container'da çalışır (port 5432)
+- Backend container'dan PostgreSQL container'a direkt bağlanır
+- Redis Docker container'da çalışır (port 6379)
+- Tüm servisler aynı Docker network'ünde
+
+**Manuel Kurulum (Local):**
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
 
 Test ve CI/CD
 
