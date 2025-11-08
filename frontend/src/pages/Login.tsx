@@ -51,7 +51,7 @@ export function Login() {
           <div className="card p-8">
             <h2 className="text-2xl font-semibold mb-2 text-gray-800 dark:text-gray-100">Welcome Back</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              Sign in to your account to continue
+              Log in to your account to continue
             </p>
             
             <form onSubmit={handleLogin} className="grid gap-4">
@@ -86,7 +86,7 @@ export function Login() {
               )}
 
               <button className="btn btn-primary w-full" type="submit" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Logging in...' : 'Login'}
               </button>
 
               <div className="text-center text-sm text-gray-600 dark:text-gray-400">

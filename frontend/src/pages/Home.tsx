@@ -128,7 +128,7 @@ export function Home() {
           <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">DropSpot</h1>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <button onClick={logout} className="btn btn-secondary">Logout</button>
+            <button onClick={logout} className="btn btn-secondary bg-red-600 hover:bg-red-700 text-white border-red-600 dark:bg-red-700 dark:hover:bg-red-800 dark:border-red-700">Logout</button>
           </div>
         </header>
 

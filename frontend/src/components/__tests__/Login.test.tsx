@@ -34,7 +34,7 @@ describe('Login Component', () => {
 
     expect(screen.getByText('Email')).toBeInTheDocument()
     expect(screen.getByText('Password')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /login/i })).toBeInTheDocument()
   })
 
   it('displays error message on login failure', async () => {
@@ -49,7 +49,7 @@ describe('Login Component', () => {
 
     const emailInput = screen.getByPlaceholderText(/you@example.com/i)
     const passwordInput = screen.getByPlaceholderText(/••••••••/i)
-    const submitButton = screen.getByRole('button', { name: /sign in/i })
+    const submitButton = screen.getByRole('button', { name: /login/i })
 
     await userEvent.type(emailInput, 'test@example.com')
     await userEvent.type(passwordInput, 'password123')
@@ -76,7 +76,7 @@ describe('Login Component', () => {
 
     const emailInput = screen.getByPlaceholderText(/you@example.com/i)
     const passwordInput = screen.getByPlaceholderText(/••••••••/i)
-    const submitButton = screen.getByRole('button', { name: /sign in/i })
+    const submitButton = screen.getByRole('button', { name: /login/i })
 
     await userEvent.type(emailInput, 'test@example.com')
     await userEvent.type(passwordInput, 'password123')
@@ -105,7 +105,7 @@ describe('Login Component', () => {
 
     const emailInput = screen.getByPlaceholderText(/you@example.com/i)
     const passwordInput = screen.getByPlaceholderText(/••••••••/i)
-    const submitButton = screen.getByRole('button', { name: /sign in/i })
+    const submitButton = screen.getByRole('button', { name: /login/i })
 
     await userEvent.type(emailInput, 'admin@example.com')
     await userEvent.type(passwordInput, 'password123')
