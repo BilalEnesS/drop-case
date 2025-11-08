@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.rate_limit import create_rate_limit_dependency
 from app.db.session import get_session
 from app.schemas.auth import SignUpRequest, LoginRequest, UserOut, TokenOut
 from app.services.auth_service import AuthService
@@ -10,18 +11,35 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/signup", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def signup(payload: SignUpRequest, db: AsyncSession = Depends(get_session)) -> UserOut:
+async def signup(
+	payload: SignUpRequest,
+	request: Request,
+	db: AsyncSession = Depends(get_session),
+	_ = Depends(create_rate_limit_dependency(limit=5, window=300, key_prefix="auth_signup"))
+) -> UserOut:
 	service = AuthService(db)
 	try:
-		return await service.signup(payload.email, payload.password)
+		user = await service.signup(payload.email, payload.password)
+		await db.commit()
+		await db.refresh(user)
+		return UserOut.model_validate(user)
 	except ValueError as e:
+		await db.rollback()
 		if str(e) == "email_taken":
 			raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email_taken")
+		raise
+	except Exception:
+		await db.rollback()
 		raise
 
 
 @router.post("/login", response_model=TokenOut)
-async def login(payload: LoginRequest, db: AsyncSession = Depends(get_session)) -> TokenOut:
+async def login(
+	payload: LoginRequest,
+	request: Request,
+	db: AsyncSession = Depends(get_session),
+	_ = Depends(create_rate_limit_dependency(limit=10, window=300, key_prefix="auth_login"))
+) -> TokenOut:
 	service = AuthService(db)
 	try:
 		token = await service.login(payload.email, payload.password)

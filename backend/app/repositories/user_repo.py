@@ -20,6 +20,7 @@ async def create_user(db: AsyncSession, email: str, password_hash: str, role: st
 		email=email, 
 		password_hash=password_hash,
 		role=role,
+		rapid_actions=0,  # Explicitly set rapid_actions default
 		created_at=datetime.now(tz=timezone.utc)
 	)
 	db.add(user)

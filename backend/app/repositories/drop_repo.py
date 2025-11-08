@@ -1,5 +1,5 @@
 from typing import Sequence
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,9 +8,14 @@ from app.models import Drop
 
 
 async def list_active_drops(db: AsyncSession, offset: int = 0, limit: int = 20) -> Sequence[Drop]:
+	# Only show drops that are active AND have started (starts_at <= now)
+	now = datetime.now(tz=timezone.utc)
 	stmt = (
 		select(Drop)
-		.where(Drop.is_active == True)  # noqa: E712
+		.where(
+			Drop.is_active == True,  # noqa: E712
+			Drop.starts_at <= now  # Only show drops that have started
+		)
 		.order_by(Drop.starts_at.desc())
 		.offset(offset)
 		.limit(limit)

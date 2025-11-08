@@ -29,6 +29,8 @@ export function DropDetail() {
   const dropId = Number(id)
   const navigate = useNavigate()
   const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+  const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+  const isAdmin = role === 'admin'
   const headersToken = useMemo(() => token ?? undefined, [token])
 
   const [drop, setDrop] = useState<Drop | null>(null)
@@ -57,8 +59,8 @@ export function DropDetail() {
         // If not found in active drops, might be inactive
       }
 
-      // If authenticated, always check claimed drops to get accurate claim_code
-      if (headersToken) {
+      // If authenticated and not admin, always check claimed drops to get accurate claim_code
+      if (headersToken && !isAdmin) {
         try {
           const claimedDrops = await apiGet<Drop[]>('/drops/claimed', headersToken)
           const claimedMatch = claimedDrops.find(c => c.id === dropId)
@@ -181,6 +183,15 @@ export function DropDetail() {
   function renderActions() {
     if (!drop) {
       return <div className="text-sm text-gray-500">Drop not found</div>
+    }
+
+    // Admin users cannot join/leave/claim
+    if (isAdmin) {
+      return (
+        <div className="space-y-3">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Admin view only - You cannot join, leave, or claim drops.</div>
+        </div>
+      )
     }
 
     // If drop is claimed, always show claim code (even if inactive)

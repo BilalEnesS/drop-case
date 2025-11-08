@@ -9,13 +9,15 @@ class AuthService:
 	def __init__(self, db: AsyncSession) -> None:
 		self.db = db
 
-	async def signup(self, email: str, password: str) -> UserOut:
+	async def signup(self, email: str, password: str):
+		# Return User object (SQLAlchemy model) instead of UserOut
+		# This allows the router to commit and refresh before converting to UserOut
 		existing = await get_user_by_email(self.db, email)
 		if existing is not None:
 			raise ValueError("email_taken")
 		password_hash = hash_password(password)
 		user = await create_user(self.db, email, password_hash)
-		return UserOut.model_validate(user)
+		return user
 
 	async def login(self, email: str, password: str) -> str:
 		user = await get_user_by_email(self.db, email)
